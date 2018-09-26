@@ -1,4 +1,4 @@
 # Introduction
 
-openshift handbook 
+openshift handbook
 
