@@ -9,7 +9,7 @@
 
 主机 | 配置 | os | 备注
 --- | --- | ---  | --- 
-yum.ocp.com | 2C + 4G + 200G | RHEL7.5 | 安装节点
+yum.ocp.com | 2C + 4G + 200G | RHEL7.5 | 安装节点 + 本地yum源
 registry.ocp.com | 1C + 2G + 300G | RHEL7.5 | registry 
 master1.ocp.com | 2C + 4G + 200G | RHEL7.5 | 
 master2.ocp.com | 2C + 4G + 200G | RHEL7.5
@@ -23,7 +23,31 @@ infra2.ocp.com | 1C + 2G + 200G | RHEL7.5
 
 ## 安装准备
 
-## yum.ocp.com 
+## All nodes 
+
+### 配置hosts文件
+
+```
+cat > /etc/hosts << EOF
+127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+192.168.3.50 single-master.ocp.com
+192.168.3.51 single-node1.ocp.com
+192.168.3.52 single-node2.ocp.com
+192.168.3.53 single-infra1.ocp.com
+192.168.3.54 single-infra2.ocp.com
+192.168.3.53 nfs.ocp.com
+192.168.3.61 registry.ocp.com
+192.168.3.60 yum.ocp.com
+EOF
+```
+
+echo "192.168.3.11 openshift-internal.ocp.com " >> /etc/hosts;
+
+## yum.ocp.com
+
+### 配置ssh key
+
 ### 下载yum文件
 
 ```
@@ -54,146 +78,143 @@ do
 done
 ```
 
-### 配置yum
-
-
-
-## All nodes 
-
-### 配置hosts文件
+### 创建本地yum源
 
 ```
-echo "192.168.3.3 master1.ocp.com" >> /etc/hosts; 
-echo "192.168.3.4 master2.ocp.com" >> /etc/hosts; 
-echo "192.168.3.5 master3.ocp.com" >> /etc/hosts;  
-echo "192.168.3.8 node1.ocp.com" >> /etc/hosts; 
-echo "192.168.3.9 node2.ocp.com" >> /etc/hosts; 
-echo "192.168.3.10 node3.ocp.com" >> /etc/hosts; 
-echo "192.168.3.11 infra1.ocp.com" >> /etc/hosts; 
-echo "192.168.3.12 infra2.ocp.com" >> /etc/hosts; 
-echo "192.168.3.14 registry.ocp.com" >> /etc/hosts; 
-echo "192.168.3.15 yum.ocp.com " >> /etc/hosts; 
+sudo yum install httpd 
+
+cp -a /path/to/repos /var/www/html/
+chmod -R +r /var/www/html/repos
+restorecon -vR /var/www/html
+
+sudo firewall-cmd --permanent --add-service=http
+sudo firewall-cmd --reload
+
+systemctl enable httpd
+systemctl start httpd
+
+```
+
+### 安装openshift-ansible 
+```
+yum install openshift-ansible
 ```
 
 ## registry.ocp.com 
-
-说明：openshift 镜像更新很快，我在安装的时候tag是 ***v3.10.34***，现在我在记录这个安装过程的时候已经变成了 ***3.10.45***, 请直接到[官网](https://docs.openshift.com/container-platform/3.10/install/disconnected_install.html)上查找最新的tag
  
 ```
-# download openshift component images 
-docker pull registry.access.redhat.com/openshift3/csi-attacher:v3.10.34
-docker pull registry.access.redhat.com/openshift3/csi-driver-registrar:v3.10.34
-docker pull registry.access.redhat.com/openshift3/csi-livenessprobe:v3.10.34
-docker pull registry.access.redhat.com/openshift3/csi-provisioner:v3.10.34
-docker pull registry.access.redhat.com/openshift3/efs-provisioner:v3.10.34
-docker pull registry.access.redhat.com/openshift3/image-inspector:v3.10.34
-docker pull registry.access.redhat.com/openshift3/local-storage-provisioner:v3.10.34
-docker pull registry.access.redhat.com/openshift3/manila-provisioner:v3.10.34
-docker pull registry.access.redhat.com/openshift3/ose-ansible:v3.10.34
-docker pull registry.access.redhat.com/openshift3/ose-cli:v3.10.34
-docker pull registry.access.redhat.com/openshift3/ose-cluster-capacity:v3.10.34
-docker pull registry.access.redhat.com/openshift3/ose-deployer:v3.10.34
-docker pull registry.access.redhat.com/openshift3/ose-descheduler:v3.10.34
-docker pull registry.access.redhat.com/openshift3/ose-docker-builder:v3.10.34
-docker pull registry.access.redhat.com/openshift3/ose-docker-registry:v3.10.34
-docker pull registry.access.redhat.com/openshift3/ose-egress-dns-proxy:v3.10.34
-docker pull registry.access.redhat.com/openshift3/ose-egress-http-proxy:v3.10.34
-docker pull registry.access.redhat.com/openshift3/ose-egress-router:v3.10.34
-docker pull registry.access.redhat.com/openshift3/ose-f5-router:v3.10.34
-docker pull registry.access.redhat.com/openshift3/ose-haproxy-router:v3.10.34
-docker pull registry.access.redhat.com/openshift3/ose-hyperkube:v3.10.34
-docker pull registry.access.redhat.com/openshift3/ose-hypershift:v3.10.34
-docker pull registry.access.redhat.com/openshift3/ose-keepalived-ipfailover:v3.10.34
-docker pull registry.access.redhat.com/openshift3/ose-pod:v3.10.34
-docker pull registry.access.redhat.com/openshift3/ose-node-problem-detector:v3.10.34
-docker pull registry.access.redhat.com/openshift3/ose-recycler:v3.10.34
-docker pull registry.access.redhat.com/openshift3/ose-web-console:v3.10.34
-docker pull registry.access.redhat.com/openshift3/ose-node:v3.10.34
-docker pull registry.access.redhat.com/openshift3/ose-control-plane:v3.10.34
-docker pull registry.access.redhat.com/openshift3/registry-console:v3.10.34
-docker pull registry.access.redhat.com/openshift3/snapshot-controller:v3.10.34
-docker pull registry.access.redhat.com/openshift3/snapshot-provisioner:v3.10.34
-docker pull registry.access.redhat.com/rhel7/etcd
+[root@mynuc1 reposync]# cat 03-dockerpull-310.sh 
+ocptag=v3.10.45
 
-# download logging and metrics component images 
-docker pull registry.access.redhat.com/openshift3/logging-auth-proxy:v3.10.34
-docker pull registry.access.redhat.com/openshift3/logging-curator:v3.10.34
-docker pull registry.access.redhat.com/openshift3/logging-elasticsearch:v3.10.34
-docker pull registry.access.redhat.com/openshift3/logging-eventrouter:v3.10.34
-docker pull registry.access.redhat.com/openshift3/logging-fluentd:v3.10.34
-docker pull registry.access.redhat.com/openshift3/logging-kibana:v3.10.34
-docker pull registry.access.redhat.com/openshift3/oauth-proxy:v3.10.34
-docker pull registry.access.redhat.com/openshift3/metrics-cassandra:v3.10.34
-docker pull registry.access.redhat.com/openshift3/metrics-hawkular-metrics:v3.10.34
-docker pull registry.access.redhat.com/openshift3/metrics-hawkular-openshift-agent:v3.10.34
-docker pull registry.access.redhat.com/openshift3/metrics-heapster:v3.10.34
-docker pull registry.access.redhat.com/openshift3/metrics-schema-installer:v3.10.34
-docker pull registry.access.redhat.com/openshift3/prometheus:v3.10.34
-docker pull registry.access.redhat.com/openshift3/prometheus-alert-buffer:v3.10.34
-docker pull registry.access.redhat.com/openshift3/prometheus-alertmanager:v3.10.34
-docker pull registry.access.redhat.com/openshift3/prometheus-node-exporter:v3.10.34
-docker pull registry.access.redhat.com/cloudforms46/cfme-openshift-postgresql
-docker pull registry.access.redhat.com/cloudforms46/cfme-openshift-memcached
-docker pull registry.access.redhat.com/cloudforms46/cfme-openshift-app-ui
-docker pull registry.access.redhat.com/cloudforms46/cfme-openshift-app
-docker pull registry.access.redhat.com/cloudforms46/cfme-openshift-embedded-ansible
-docker pull registry.access.redhat.com/cloudforms46/cfme-openshift-httpd
-docker pull registry.access.redhat.com/cloudforms46/cfme-httpd-configmap-generator
-docker pull registry.access.redhat.com/rhgs3/rhgs-server-rhel7
-docker pull registry.access.redhat.com/rhgs3/rhgs-volmanager-rhel7
-docker pull registry.access.redhat.com/rhgs3/rhgs-gluster-block-prov-rhel7
-docker pull registry.access.redhat.com/rhgs3/rhgs-s3-server-rhel7
+ docker pull registry.access.redhat.com/openshift3/csi-attacher:$ocptag
+ docker pull registry.access.redhat.com/openshift3/csi-driver-registrar:$ocptag
+ docker pull registry.access.redhat.com/openshift3/csi-livenessprobe:$ocptag
+ docker pull registry.access.redhat.com/openshift3/csi-provisioner:$ocptag
+ docker pull registry.access.redhat.com/openshift3/efs-provisioner:$ocptag
+ docker pull registry.access.redhat.com/openshift3/image-inspector:$ocptag
+ docker pull registry.access.redhat.com/openshift3/local-storage-provisioner:$ocptag
+ docker pull registry.access.redhat.com/openshift3/manila-provisioner:$ocptag
+ docker pull registry.access.redhat.com/openshift3/ose-ansible:$ocptag
+ docker pull registry.access.redhat.com/openshift3/ose-cli:$ocptag
+ docker pull registry.access.redhat.com/openshift3/ose-cluster-capacity:$ocptag
+ docker pull registry.access.redhat.com/openshift3/ose-deployer:$ocptag
+ docker pull registry.access.redhat.com/openshift3/ose-descheduler:$ocptag
+ docker pull registry.access.redhat.com/openshift3/ose-docker-builder:$ocptag
+ docker pull registry.access.redhat.com/openshift3/ose-docker-registry:$ocptag
+ docker pull registry.access.redhat.com/openshift3/ose-egress-dns-proxy:$ocptag
+ docker pull registry.access.redhat.com/openshift3/ose-egress-http-proxy:$ocptag
+ docker pull registry.access.redhat.com/openshift3/ose-egress-router:$ocptag
+ docker pull registry.access.redhat.com/openshift3/ose-f5-router:$ocptag
+ docker pull registry.access.redhat.com/openshift3/ose-haproxy-router:$ocptag
+ docker pull registry.access.redhat.com/openshift3/ose-hyperkube:$ocptag
+ docker pull registry.access.redhat.com/openshift3/ose-hypershift:$ocptag
+ docker pull registry.access.redhat.com/openshift3/ose-keepalived-ipfailover:$ocptag
+ docker pull registry.access.redhat.com/openshift3/ose-pod:$ocptag
+ docker pull registry.access.redhat.com/openshift3/ose-docker-builder:$ocptag
+ docker pull registry.access.redhat.com/openshift3/ose-node-problem-detector:$ocptag
+ docker pull registry.access.redhat.com/openshift3/ose-recycler:$ocptag
+ docker pull registry.access.redhat.com/openshift3/ose-web-console:$ocptag
+ docker pull registry.access.redhat.com/openshift3/ose-node:$ocptag
+ docker pull registry.access.redhat.com/openshift3/ose-control-plane:$ocptag
+ docker pull registry.access.redhat.com/openshift3/registry-console:$ocptag
+ docker pull registry.access.redhat.com/openshift3/snapshot-controller:$ocptag
+ docker pull registry.access.redhat.com/openshift3/snapshot-provisioner:$ocptag
+ docker pull registry.access.redhat.com/rhel7/etcd
 
-# service catalog, openshift ansible broker, template service broker 
-docker pull registry.access.redhat.com/openshift3/apb-base:v3.10.34
-docker pull registry.access.redhat.com/openshift3/apb-tools:v3.10.34
-docker pull registry.access.redhat.com/openshift3/ose-service-catalog:v3.10.34
-docker pull registry.access.redhat.com/openshift3/ose-ansible-service-broker:v3.10.34
-docker pull registry.access.redhat.com/openshift3/mariadb-apb:v3.10.34
-docker pull registry.access.redhat.com/openshift3/mediawiki-apb:v3.10.34
-docker pull registry.access.redhat.com/openshift3/mysql-apb:v3.10.34
-docker pull registry.access.redhat.com/openshift3/ose-template-service-broker:v3.10.34
-docker pull registry.access.redhat.com/openshift3/postgresql-apb:v3.10.34
+ docker pull registry.access.redhat.com/openshift3/logging-auth-proxy:$ocptag
+ docker pull registry.access.redhat.com/openshift3/logging-curator:$ocptag
+ docker pull registry.access.redhat.com/openshift3/logging-elasticsearch:$ocptag
+ docker pull registry.access.redhat.com/openshift3/logging-eventrouter:$ocptag
+ docker pull registry.access.redhat.com/openshift3/logging-fluentd:$ocptag
+ docker pull registry.access.redhat.com/openshift3/logging-kibana:$ocptag
+ docker pull registry.access.redhat.com/openshift3/oauth-proxy:$ocptag
+ docker pull registry.access.redhat.com/openshift3/metrics-cassandra:$ocptag
+ docker pull registry.access.redhat.com/openshift3/metrics-hawkular-metrics:$ocptag
+ docker pull registry.access.redhat.com/openshift3/metrics-hawkular-openshift-agent:$ocptag
+ docker pull registry.access.redhat.com/openshift3/metrics-heapster:$ocptag
+ docker pull registry.access.redhat.com/openshift3/metrics-schema-installer:$ocptag
+ docker pull registry.access.redhat.com/openshift3/prometheus:$ocptag
+ docker pull registry.access.redhat.com/openshift3/prometheus-alert-buffer:$ocptag
+ docker pull registry.access.redhat.com/openshift3/prometheus-alertmanager:$ocptag
+ docker pull registry.access.redhat.com/openshift3/prometheus-node-exporter:$ocptag
+ docker pull registry.access.redhat.com/cloudforms46/cfme-openshift-postgresql
+ docker pull registry.access.redhat.com/cloudforms46/cfme-openshift-memcached
+ docker pull registry.access.redhat.com/cloudforms46/cfme-openshift-app-ui
+ docker pull registry.access.redhat.com/cloudforms46/cfme-openshift-app
+ docker pull registry.access.redhat.com/cloudforms46/cfme-openshift-embedded-ansible
+ docker pull registry.access.redhat.com/cloudforms46/cfme-openshift-httpd
+ docker pull registry.access.redhat.com/cloudforms46/cfme-httpd-configmap-generator
+ docker pull registry.access.redhat.com/rhgs3/rhgs-server-rhel7
+ docker pull registry.access.redhat.com/rhgs3/rhgs-volmanager-rhel7
+ docker pull registry.access.redhat.com/rhgs3/rhgs-gluster-block-prov-rhel7
+ docker pull registry.access.redhat.com/rhgs3/rhgs-s3-server-rhel7
 
-# 
-docker pull registry.access.redhat.com/jboss-amq-6/amq63-openshift
-docker pull registry.access.redhat.com/jboss-datagrid-7/datagrid71-openshift
-docker pull registry.access.redhat.com/jboss-datagrid-7/datagrid71-client-openshift
-docker pull registry.access.redhat.com/jboss-datavirt-6/datavirt63-openshift
-docker pull registry.access.redhat.com/jboss-datavirt-6/datavirt63-driver-openshift
-docker pull registry.access.redhat.com/jboss-decisionserver-6/decisionserver64-openshift
-docker pull registry.access.redhat.com/jboss-processserver-6/processserver64-openshift
-docker pull registry.access.redhat.com/jboss-eap-6/eap64-openshift
-docker pull registry.access.redhat.com/jboss-eap-7/eap70-openshift
-docker pull registry.access.redhat.com/jboss-webserver-3/webserver31-tomcat7-openshift
-docker pull registry.access.redhat.com/jboss-webserver-3/webserver31-tomcat8-openshift
-docker pull registry.access.redhat.com/openshift3/jenkins-1-rhel7
-docker pull registry.access.redhat.com/openshift3/jenkins-2-rhel7
-docker pull registry.access.redhat.com/openshift3/jenkins-agent-maven-35-rhel7:v3.10.34
-docker pull registry.access.redhat.com/openshift3/jenkins-agent-nodejs-8-rhel7:v3.10.34
-docker pull registry.access.redhat.com/openshift3/jenkins-slave-base-rhel7
-docker pull registry.access.redhat.com/openshift3/jenkins-slave-maven-rhel7
-docker pull registry.access.redhat.com/openshift3/jenkins-slave-nodejs-rhel7
-docker pull registry.access.redhat.com/rhscl/mongodb-32-rhel7
-docker pull registry.access.redhat.com/rhscl/mysql-57-rhel7
-docker pull registry.access.redhat.com/rhscl/perl-524-rhel7
-docker pull registry.access.redhat.com/rhscl/php-56-rhel7
-docker pull registry.access.redhat.com/rhscl/postgresql-95-rhel7
-docker pull registry.access.redhat.com/rhscl/python-35-rhel7
-docker pull registry.access.redhat.com/redhat-sso-7/sso70-openshift
-docker pull registry.access.redhat.com/rhscl/ruby-24-rhel7
-docker pull registry.access.redhat.com/redhat-openjdk-18/openjdk18-openshift
-docker pull registry.access.redhat.com/redhat-sso-7/sso71-openshift
-docker pull registry.access.redhat.com/rhscl/nodejs-6-rhel7
-docker pull registry.access.redhat.com/rhscl/mariadb-101-rhel7
+ docker pull registry.access.redhat.com/openshift3/apb-base:$ocptag
+ docker pull registry.access.redhat.com/openshift3/apb-tools:$ocptag
+ docker pull registry.access.redhat.com/openshift3/ose-service-catalog:$ocptag
+ docker pull registry.access.redhat.com/openshift3/ose-ansible-service-broker:$ocptag
+ docker pull registry.access.redhat.com/openshift3/mariadb-apb:$ocptag
+ docker pull registry.access.redhat.com/openshift3/mediawiki-apb:$ocptag
+ docker pull registry.access.redhat.com/openshift3/mysql-apb:$ocptag
+ docker pull registry.access.redhat.com/openshift3/ose-template-service-broker:$ocptag
+ docker pull registry.access.redhat.com/openshift3/postgresql-apb:$ocptag
 
-docker pull \
-registry.access.redhat.com/jboss-webserver-3/webserver30-tomcat7-openshift:latest
-docker pull \
-registry.access.redhat.com/jboss-webserver-3/webserver30-tomcat7-openshift:1.1
+ docker pull registry.access.redhat.com/jboss-amq-6/amq63-openshift
+ docker pull registry.access.redhat.com/jboss-datagrid-7/datagrid71-openshift
+ docker pull registry.access.redhat.com/jboss-datagrid-7/datagrid71-client-openshift
+ docker pull registry.access.redhat.com/jboss-datavirt-6/datavirt63-openshift
+ docker pull registry.access.redhat.com/jboss-datavirt-6/datavirt63-driver-openshift
+ docker pull registry.access.redhat.com/jboss-decisionserver-6/decisionserver64-openshift
+ docker pull registry.access.redhat.com/jboss-processserver-6/processserver64-openshift
+ docker pull registry.access.redhat.com/jboss-eap-6/eap64-openshift
+ docker pull registry.access.redhat.com/jboss-eap-7/eap70-openshift
+ docker pull registry.access.redhat.com/jboss-webserver-3/webserver31-tomcat7-openshift
+ docker pull registry.access.redhat.com/jboss-webserver-3/webserver31-tomcat8-openshift
+ docker pull registry.access.redhat.com/openshift3/jenkins-1-rhel7
+ docker pull registry.access.redhat.com/openshift3/jenkins-2-rhel7
+ docker pull registry.access.redhat.com/openshift3/jenkins-agent-maven-35-rhel7:$ocptag
+ docker pull registry.access.redhat.com/openshift3/jenkins-agent-nodejs-8-rhel7:$ocptag
+ docker pull registry.access.redhat.com/openshift3/jenkins-slave-base-rhel7
+ docker pull registry.access.redhat.com/openshift3/jenkins-slave-maven-rhel7
+ docker pull registry.access.redhat.com/openshift3/jenkins-slave-nodejs-rhel7
+ docker pull registry.access.redhat.com/rhscl/mongodb-32-rhel7
+ docker pull registry.access.redhat.com/rhscl/mysql-57-rhel7
+ docker pull registry.access.redhat.com/rhscl/perl-524-rhel7
+ docker pull registry.access.redhat.com/rhscl/php-56-rhel7
+ docker pull registry.access.redhat.com/rhscl/postgresql-95-rhel7
+ docker pull registry.access.redhat.com/rhscl/python-35-rhel7
+ docker pull registry.access.redhat.com/redhat-sso-7/sso70-openshift
+ docker pull registry.access.redhat.com/rhscl/ruby-24-rhel7
+ docker pull registry.access.redhat.com/redhat-openjdk-18/openjdk18-openshift
+ docker pull registry.access.redhat.com/redhat-sso-7/sso71-openshift
+ docker pull registry.access.redhat.com/rhscl/nodejs-6-rhel7
+ docker pull registry.access.redhat.com/rhscl/mariadb-101-rhel7
+
+ docker pull registry.access.redhat.com/jboss-webserver-3/webserver30-tomcat7-openshift:latest
+ docker pull registry.access.redhat.com/jboss-webserver-3/webserver30-tomcat7-openshift:1.1
 ```
 
-### 配置registry
+### 安装&配置docker-distribution
 
 ```
 yum -y install docker-distribution;
@@ -235,44 +256,81 @@ docker images |egrep "redhat.com|docker.io"| awk '{print "docker rmi "$1":"$2}'|
 xargs -i bash -c "{}"
 ```
 
-### 创建本地yum源
-**在yum.ocp.com节点上执行以下命令**
-
-```
-sudo yum install httpd 
-
-cp -a /path/to/repos /var/www/html/
-chmod -R +r /var/www/html/repos
-restorecon -vR /var/www/html
-
-sudo firewall-cmd --permanent --add-service=http
-sudo firewall-cmd --reload
-
-systemctl enable httpd
-systemctl start httpd
+### 安装配置防火墙
 
 ```
 
-### 安装openshift-ansible 
-```
-yum install openshift-ansible
+cp /etc/sysconfig/iptables /etc/sysconfig/iptables.bak.$(date "+%Y%m%d%H%M%S");
+sed -i '/.*--dport 22 -j ACCEPT.*/a\-A INPUT -p tcp -m state --state NEW -m tcp --dport 443 -j ACCEPT' /etc/sysconfig/iptables;
+
+systemctl restart iptables;
+
 ```
 
-### 配置主机互信
-**在yum.ocp.com节点上执行以下命令,在安装节点和其他节点之间建立互信**
+## All nodes 
 
+### 使用本地yum
+```
+cat << EOF > /etc/yum.repos.d/ocp.repo
+[rhel-7-server-rpms]
+name=rhel-7-server-rpms
+baseurl=http://yum.ocp.com/repos/rhel-7-server-rpms
+enabled=1
+gpgcheck=0
+[rhel-7-server-extras-rpms]
+name=rhel-7-server-extras-rpms
+baseurl=http://yum.ocp.com/repos/rhel-7-server-extras-rpms
+enabled=1
+gpgcheck=0
+[rhel-7-server-ansible-2.4-rpms]
+name=rhel-7-server-ansible-2.4-rpms
+baseurl=http://yum.ocp.com/repos/rhel-7-server-ansible-2.4-rpms
+enabled=1
+gpgcheck=0
+[rhel-7-server-ose-3.10-rpms]
+name=rhel-7-server-ose-3.10-rpms
+baseurl=http://yum.ocp.com/repos/rhel-7-server-ose-3.10-rpms
+enabled=1
+gpgcheck=0
+EOF
+```
+
+### 更新软件 & 配置registry
+```
+yum -y install wget git net-tools bind-utils iptables-services bridge-utils bash-completion vim atomic-openshift-excluder atomic-openshift-docker-excluder lrzsz unzip atomic-openshift-utils;
+
+scp registry.ocp.com:/etc/crts/ocp.com.crt /etc/pki/ca-trust/source/anchors/
+update-ca-trust extract
+
+```
+
+### 安装docker & 配置docker storage
+
+
+```
+yum -y install docker 
+
+cp /etc/sysconfig/docker /etc/sysconfig/docker.bak.$(date "+%Y%m%d%H%M%S");
+sed -i s/".*OPTIONS=.*"/"OPTIONS='--insecure-registry=172.30.0.0\/16 --selinux-enabled --log-opt max-size=1M --log-opt max-file=3'"/g /etc/sysconfig/docker;
+echo "ADD_REGISTRY='--add-registry registry.ocp.com'" >> /etc/sysconfig/docker;
+
+systemctl restart docker
+
+reboot
+
+```
+
+## 安装
+
+### single-master.ocp.com
 ```
 ssh-keygen;
 
-for i in  master1.ocp.com master2.ocp.com master3.ocp.com node1.ocp.com node2.ocp.com node3.ocp.com infra1.ocp.com infra2.ocp.com;
+for i in  single-master.ocp.com  single-node1.ocp.com single-node2.ocp.com  single-infra1.ocp.com single-infra2.ocp.com nfs.ocp.com;
 do
   ssh-copy-id $i;
 done;
-
 ``` 
-
-
-## 安装
 
 ### 配置ansible inventory 文件
 ```
@@ -329,20 +387,6 @@ infra2.ocp.com openshift_node_group_name='node-config-infra'
 EOF
 ```
 
-### 修改配置文件
-
-```
-vim /usr/share/ansible/openshift-ansible/playbooks/openshift-checks/private/roles/openshift_health_checker/openshift_checks/memory_availability.py
-
-```
-![image](./images/1.png)
-openshift在安装的时候会检查默认配置，如果不满足则会安装失败，在这里我修改配置为
-
-```
-oo_master_to_config: 4G
-oo_nodes_to_config: 4G
-oo_etc_to_config: 4G
-```
 
 ### 安装
 ```
@@ -350,9 +394,22 @@ oo_etc_to_config: 4G
 ansible-playbook /usr/share/ansible/openshift-ansible/playbooks/prerequisites.yml
 
 # 安装
-ansible-playbook /usr/share/ansible/openshift-ansible/playbooks/deploy_cluster.yml
+ansible-playbook -vv /usr/share/ansible/openshift-ansible/playbooks/deploy_cluster.yml | tee /tmp/ansible.log;
 
 ```
+# issues
 
+## etcd镜像找不到
+etcd:3.2.22 镜像找不到  
+
+```
+image rhel7/etcd:3.2.22 not found
+```
+
+原因 etcd 在安装包里hardcode了tag，所以会出错, bugzilla 地址：
+https://bugzilla.redhat.com/show_bug.cgi?id=1619279
+
+修改办法：
+将etcd改一下tag，重新推到registry中即可
 
 
